@@ -1,9 +1,9 @@
-import model.FeatureRecord;
-import model.Gene;
-import model.Genes;
-import model.Transcript;
+package parser;
+
+import model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import utils.Constants;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -20,16 +20,16 @@ public class GtfParser {
     // Map<Gene_Id, Map<Transcript_Id, TreeMap<StartPosition, FeatureRecord>>[cds or exon]>
     private static Genes parsedGTF;
 
-    public static Genes parse(String inputPath) {
+    public static Genes parse(String inputPath, ReadCountData rcData) {
         errorLines = 0;
         logger.info("Starting to parse gtf file");
         parsedGTF = new Genes();
         Path path = Path.of(inputPath);
 
         try (Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8)) {
-            lines.parallel()
+            lines//.parallel()
                     .filter(line -> !line.trim().isEmpty() && !line.startsWith("#"))
-                    .forEach(line -> processLine(line.trim()));
+                    .forEach(line -> processLine(line.trim(), rcData));
         } catch (Exception e) {
             logger.error("Error while parsing gtf file", e);
         }
@@ -40,7 +40,7 @@ public class GtfParser {
         return parsedGTF;
     }
 
-    private static void processLine(String line) {
+    private static void processLine(String line, ReadCountData rcData) {
         var splitLine = new String[9];
         var currentIdx = 0;
         var currentStart = 0;
@@ -98,13 +98,13 @@ public class GtfParser {
 
             switch (splitLine[2]){
                 case "exon":
-                    read_exon(splitLine, attributes, stringBuilder, featureRecord);
+                    read_exon(rcData, splitLine, attributes, stringBuilder, featureRecord);
                     break;
                 case "gene":
-                    read_gene(splitLine, attributes, stringBuilder);
+                    read_gene(rcData, splitLine, attributes, stringBuilder);
                     break;
                 case "transcript":
-                    read_transcript(splitLine, attributes, stringBuilder);
+                    read_transcript(rcData, splitLine, attributes, stringBuilder);
                     break;
             }
 
@@ -114,7 +114,7 @@ public class GtfParser {
         }
     }
 
-    private static void read_gene(String[] splitLine, ArrayList<String> attributes, StringBuilder stringBuilder){
+    private static void read_gene(ReadCountData rcData, String[] splitLine, ArrayList<String> attributes, StringBuilder stringBuilder){
         String key = null;
         var gene = new Gene();
 
@@ -138,6 +138,8 @@ public class GtfParser {
 
             switch (key) {
                 case Constants.GENE_ID:
+                    if(!rcData.getReadCountData().containsKey(value))
+                        return;
                     gene.setGeneId(value);
                     break;
                 case Constants.GENE_SOURCE:
@@ -168,10 +170,13 @@ public class GtfParser {
         currentGene.setStart(Integer.parseInt(splitLine[3]));
         currentGene.setStop(Integer.parseInt(splitLine[4]));
 
-        parsedGTF.getFeaturesByTranscriptByGene().put(geneId, currentGene);
+        var finalGene = currentGene;
+        synchronized (parsedGTF){
+            parsedGTF.getFeaturesByTranscriptByGene().computeIfAbsent(geneId, id -> finalGene);
+        }
     }
 
-    private static void read_exon(String[] splitLine, ArrayList<String> attributes, StringBuilder stringBuilder, FeatureRecord featureRecord){
+    private static void read_exon(ReadCountData rcData, String[] splitLine, ArrayList<String> attributes, StringBuilder stringBuilder, FeatureRecord featureRecord){
         String key = null;
         var gene = new Gene();
         var transcript = new Transcript();
@@ -197,9 +202,14 @@ public class GtfParser {
 
             switch (key) {
                 case Constants.GENE_ID:
+                    if(!rcData.getReadCountData().containsKey(value))
+                        return;
                     gene.setGeneId(value);
                     break;
                 case Constants.TRANSCRIPT_ID:
+                    var geneId = gene.getGeneId();
+                    if(geneId != null && !rcData.getTranscriptsForGene(geneId).containsKey(value))
+                        return;
                     transcript.setTranscriptId(value);
                     break;
                 case Constants.EXON_NUMBER:
@@ -265,7 +275,7 @@ public class GtfParser {
         transcriptEntry.addRecord(featureRecord.getStart(), featureRecord);
     }
 
-    private static void read_transcript(String[] splitLine, ArrayList<String> attributes, StringBuilder stringBuilder){
+    private static void read_transcript(ReadCountData rcData, String[] splitLine, ArrayList<String> attributes, StringBuilder stringBuilder){
         String key = null;
         var gene = new Gene();
         var transcript = new Transcript();
@@ -290,9 +300,14 @@ public class GtfParser {
 
             switch (key) {
                 case Constants.GENE_ID:
+                    if(!rcData.getReadCountData().containsKey(value))
+                        return;
                     gene.setGeneId(value);
                     break;
                 case Constants.TRANSCRIPT_ID:
+                    var geneId = gene.getGeneId();
+                    if(geneId != null && !rcData.getTranscriptsForGene(geneId).containsKey(value))
+                        return;
                     transcript.setTranscriptId(value);
                     break;
                 case Constants.GENE_SOURCE:

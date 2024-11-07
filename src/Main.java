@@ -1,9 +1,14 @@
+import model.Genes;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import parser.FastaParser;
+import parser.GtfParser;
+import parser.ReadCountParser;
+
 public class Main {
     private static Logger logger = LoggerFactory.getLogger(Main.class);
     public static void main(String[] args) {
@@ -30,7 +35,9 @@ public class Main {
             var fidx = res.get("fidx");
             var gtf = res.get("gtf");
             var od = res.get("od");
-            var data = GtfParser.parse(gtf.toString());
+            var rcData = ReadCountParser.parse(read_counts.toString());
+            var gtfData = GtfParser.parse(gtf.toString(), rcData);
+            //var fastaData = FastaParser.parse(fasta.toString());
             logger.info(String.format("Time needed for parsing: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
 
 

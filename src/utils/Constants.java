@@ -1,3 +1,5 @@
+package utils;
+
 public class Constants {
     public static final int EXON_INDEX = 0;
 
