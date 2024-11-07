@@ -5,9 +5,11 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import parser.FastaParser;
+import parser.FidxParser;
 import parser.GtfParser;
 import parser.ReadCountParser;
+
+import java.io.File;
 
 public class Main {
     private static Logger logger = LoggerFactory.getLogger(Main.class);
@@ -27,17 +29,19 @@ public class Main {
             Namespace res = parser.parseArgs(args);
             var start = System.currentTimeMillis();
             var length = res.get("length");
-            var fr_length = res.get("frlength");
+            var frLength = res.get("frlength");
             var sd = res.get("SD");
             var read_counts = res.get("readcounts");
-            var mutation_rate = res.get("mutationrate");
+            var mutationRate = res.get("mutationrate");
             var fasta = res.get("fasta");
             var fidx = res.get("fidx");
             var gtf = res.get("gtf");
             var od = res.get("od");
             var rcData = ReadCountParser.parse(read_counts.toString());
+            var fidxData = FidxParser.parse(fidx.toString());
             var gtfData = GtfParser.parse(gtf.toString(), rcData);
-            //var fastaData = FastaParser.parse(fasta.toString());
+
+            var seqExtractor = new GenomeSequenceExtractor(new File(fasta.toString()), fidxData);
             logger.info(String.format("Time needed for parsing: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
 
 
