@@ -22,6 +22,7 @@ public class ReadCountParser {
     public static ReadCountData parse(String inputPath) {
         Path path = Path.of(inputPath);
         errorLines = 0;
+        logger.info("Starting to parse rc file");
         data = new ReadCountData();
 
         try (Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8)) {
@@ -29,10 +30,10 @@ public class ReadCountParser {
                     .filter(line -> !line.trim().isEmpty() && !line.startsWith("gene"))
                     .forEach(line -> processLine(line.trim()));
         } catch (Exception e) {
-            logger.error("Error while parsing gtf file", e);
+            logger.error("Error while parsing rc file", e);
         }
 
-        logger.info("GTF-File parsed");
+        logger.info("RC-File parsed");
         if (errorLines > 0)
             logger.warn(String.format("%s could not be saved due to an error while parsing", errorLines));
 

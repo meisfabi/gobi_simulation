@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import parser.FidxParser;
 import parser.GtfParser;
 import parser.ReadCountParser;
+import utils.Constants;
 
 import java.io.File;
 
@@ -27,7 +28,6 @@ public class Main {
 
         try {
             Namespace res = parser.parseArgs(args);
-            var start = System.currentTimeMillis();
             var length = res.get("length");
             var frLength = res.get("frlength");
             var sd = res.get("SD");
@@ -37,12 +37,28 @@ public class Main {
             var fidx = res.get("fidx");
             var gtf = res.get("gtf");
             var od = res.get("od");
+            var start = System.currentTimeMillis();
             var rcData = ReadCountParser.parse(read_counts.toString());
             var fidxData = FidxParser.parse(fidx.toString());
             var gtfData = GtfParser.parse(gtf.toString(), rcData);
+            logger.info(String.format("Time needed for parsing: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
 
             var seqExtractor = new GenomeSequenceExtractor(new File(fasta.toString()), fidxData);
-            logger.info(String.format("Time needed for parsing: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
+            for(var entry : gtfData.getFeaturesByTranscriptByGene().entrySet()){
+                var geneId = entry.getKey();
+                var value = entry.getValue();
+
+                var geneSeq = seqExtractor.getSequence(value.getSeqName(), value.getStart(), value.getStop());
+
+                for(var transcript : value.getTranscriptMapArray()[Constants.EXON_INDEX].values()){
+                    var transcriptSeq = new StringBuilder();
+                    for(var exon : transcript.getTranscriptEntry().getPositions().values()){
+                        transcriptSeq.append(geneSeq, exon.getStart() - value.getStart(), exon.getStop() - value.getStart());
+                    }
+                    var a = transcriptSeq.toString();
+                }
+            }
+
 
 
             logger.info(String.format("Time needed for whole program: %s seconds", (System.currentTimeMillis() - start) / 1000.0));

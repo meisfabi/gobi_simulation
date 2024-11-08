@@ -1,13 +1,11 @@
 package model;
 
 public class FidxEntry {
-    private String chromosome;
     private long start;
     private int lineLength;
     private int lineLengthWithNewLine;
 
-    public FidxEntry(String chromosome, long start, int lineLength, int lineLengthWithNewLine) {
-        this.chromosome = chromosome;
+    public FidxEntry(long start, int lineLength, int lineLengthWithNewLine) {
         this.start = start;
         this.lineLength = lineLength;
         this.lineLengthWithNewLine = lineLengthWithNewLine;
@@ -25,7 +23,4 @@ public class FidxEntry {
         return lineLengthWithNewLine;
     }
 
-    public String getChromosome() {
-        return chromosome;
-    }
 }

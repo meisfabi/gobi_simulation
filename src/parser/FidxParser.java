@@ -10,17 +10,19 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 public class FidxParser {
     private static int errorLines;
     private static Logger logger = LoggerFactory.getLogger(FidxParser.class);
-    private static List<FidxEntry> data;
-    public static List<FidxEntry> parse(String inputPath) {
+    private static Map<String, FidxEntry> data;
+    public static Map<String, FidxEntry> parse(String inputPath) {
         errorLines = 0;
-        logger.info("Starting to parse gtf file");
-        data = new ArrayList<>();
+        logger.info("Starting to parse fidx file");
+        data = new HashMap<>();
         Path path = Path.of(inputPath);
 
         try (Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8)) {
@@ -28,10 +30,10 @@ public class FidxParser {
                     .filter(line -> !line.trim().isEmpty())
                     .forEach(line -> processLine(line.trim()));
         } catch (Exception e) {
-            logger.error("Error while parsing gtf file", e);
+            logger.error("Error while parsing fidx file", e);
         }
 
-        logger.info("GTF-File parsed");
+        logger.info("Fidx-File parsed");
         if (errorLines > 0)
             logger.warn(String.format("%s could not be saved due to an error while parsing", errorLines));
 
@@ -52,6 +54,6 @@ public class FidxParser {
             }
         }
         splitLine[currentIdx] = line.substring(currentStart);
-        data.add(new FidxEntry(splitLine[0], Long.parseLong(splitLine[2]), Integer.parseInt(splitLine[3]),Integer.parseInt(splitLine[4])));
+        data.put(splitLine[0], new FidxEntry(Long.parseLong(splitLine[2]), Integer.parseInt(splitLine[3]),Integer.parseInt(splitLine[4])));
     }
 }
