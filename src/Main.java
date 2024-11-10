@@ -3,6 +3,7 @@ import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
+import org.apache.commons.math3.distribution.NormalDistribution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import parser.FidxParser;
@@ -11,6 +12,7 @@ import parser.ReadCountParser;
 import utils.Constants;
 
 import java.io.File;
+import java.util.Random;
 
 public class Main {
     private static Logger logger = LoggerFactory.getLogger(Main.class);
@@ -28,9 +30,9 @@ public class Main {
 
         try {
             Namespace res = parser.parseArgs(args);
-            var length = res.get("length");
-            var frLength = res.get("frlength");
-            var sd = res.get("SD");
+            int length = res.get("length");
+            int frLength = res.get("frlength");
+            int sd = res.get("SD");
             var read_counts = res.get("readcounts");
             var mutationRate = res.get("mutationrate");
             var fasta = res.get("fasta");
@@ -44,22 +46,30 @@ public class Main {
             logger.info(String.format("Time needed for parsing: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
 
             var seqExtractor = new GenomeSequenceExtractor(new File(fasta.toString()), fidxData);
+            var geneSeq = new StringBuilder();
             for(var entry : gtfData.getFeaturesByTranscriptByGene().entrySet()){
-                var geneId = entry.getKey();
-                var value = entry.getValue();
+                var gene = entry.getValue();
+                geneSeq.setLength(0);
+                geneSeq.append(seqExtractor.getSequence(gene.getSeqName(), gene.getStart(), gene.getStop()));
 
-                var geneSeq = seqExtractor.getSequence(value.getSeqName(), value.getStart(), value.getStop());
-
-                for(var transcript : value.getTranscriptMapArray()[Constants.EXON_INDEX].values()){
+                for(var transcript : gene.getTranscriptMapArray()[Constants.EXON_INDEX].values()){
                     var transcriptSeq = new StringBuilder();
                     for(var exon : transcript.getTranscriptEntry().getPositions().values()){
-                        transcriptSeq.append(geneSeq, exon.getStart() - value.getStart(), exon.getStop() - value.getStart());
+                        if(exon.getStrand() == '+'){
+                            transcriptSeq.append(geneSeq, exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
+                        } else{
+                            var revComp = seqExtractor.getReverseComplement(geneSeq.toString(), exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
+                            transcriptSeq.append(revComp);
+                        }
                     }
-                    var a = transcriptSeq.toString();
+
+                    var random = new Random();
+                    var fragmentLength = Math.round(Math.max(random.nextGaussian(frLength, sd), length));
+                    var position = random.nextLong(0, transcriptSeq.length() - fragmentLength);
+                    var fragment = transcriptSeq.substring((int)position, (int)(position + fragmentLength));
+                    var a = "";
                 }
             }
-
-
 
             logger.info(String.format("Time needed for whole program: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
         } catch(ArgumentParserException e){

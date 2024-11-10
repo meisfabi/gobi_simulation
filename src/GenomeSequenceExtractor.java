@@ -1,15 +1,11 @@
-import jdk.jshell.spi.ExecutionControl;
 import model.FidxEntry;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
 
 public class GenomeSequenceExtractor {
     private RandomAccessFile raf;
@@ -24,13 +20,17 @@ public class GenomeSequenceExtractor {
         var fidx = fidxData.get(chr);
         var lineLength = fidx.getLineLength();
         var lineLengthWithNewline = fidx.getLineLengthWithNewLine();
-        var realStart = fidx.getStart() + start;
         var result = new StringBuilder();
         var newLineLength = lineLengthWithNewline - lineLength;
+        // var realStart = fidx.getStart();
+        var linesTillStart = (start) / lineLength;
+        var totalLinebreaks = linesTillStart * newLineLength;
+
+        var realStart = fidx.getStart() + start + totalLinebreaks - 1;
 
         var position = 0;
         raf.seek(realStart);
-        var tempBuffer = new byte[lineLengthWithNewline];
+        var tempBuffer = new byte[Math.min(end - start + 1, lineLength)];
         raf.readFully(tempBuffer);
 
         for (var b : tempBuffer) {
@@ -49,7 +49,7 @@ public class GenomeSequenceExtractor {
         result.append(new String(tempBuffer));
         raf.skipBytes(newLineLength);
 
-        var bytesToRead = end - start - position - (newLineLength - 1);
+        var bytesToRead = end - start - position - (newLineLength - 1) + 1;
         var bytesRead = 0;
 
         while(bytesRead < bytesToRead){
@@ -64,6 +64,24 @@ public class GenomeSequenceExtractor {
         }
 
         return result.toString();
+    }
+
+    private final Map<Character, Character> complementMap = Map.of(
+    'A', 'T',
+    'T', 'A',
+    'G', 'C',
+    'C', 'G'
+    );
+    public String getReverseComplement(String gene, int start, int end){
+        var geneLength = gene.length();
+        var seqLength = end - start;
+        var subsequence = gene.substring((geneLength - start - seqLength), (geneLength - start));
+        var reverseComplement = new StringBuilder();
+        for (int i = subsequence.length() - 1; i >= 0; i--) {
+            char base = subsequence.charAt(i);
+            reverseComplement.append(complementMap.get(base));
+        }
+        return reverseComplement.toString();
     }
 
 

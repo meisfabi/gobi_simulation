@@ -7,12 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
 public class ReadCountParser {
@@ -26,7 +21,7 @@ public class ReadCountParser {
         data = new ReadCountData();
 
         try (Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8)) {
-            lines.parallel()
+            lines//.parallel()
                     .filter(line -> !line.trim().isEmpty() && !line.startsWith("gene"))
                     .forEach(line -> processLine(line.trim()));
         } catch (Exception e) {

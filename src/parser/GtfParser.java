@@ -117,7 +117,6 @@ public class GtfParser {
     private static void read_gene(ReadCountData rcData, String[] splitLine, ArrayList<String> attributes, StringBuilder stringBuilder){
         String key = null;
         var gene = new Gene();
-
         for (var attribute : attributes) {
             stringBuilder.setLength(0);
             for (int i = 0; i < attribute.length(); i++) {
@@ -165,6 +164,7 @@ public class GtfParser {
             currentGene.setGeneId(geneId);
             currentGene.setGeneSource(gene.getGeneSource());
             currentGene.setSeqName(splitLine[0]);
+            currentGene.setStrand(splitLine[6].charAt(0));
         }
 
         currentGene.setStart(Integer.parseInt(splitLine[3]));
@@ -254,6 +254,7 @@ public class GtfParser {
             currentGene.setGeneId(geneId);
             currentGene.setGeneSource(gene.getGeneSource());
             currentGene.setSeqName(splitLine[0]);
+            currentGene.setStrand(splitLine[6].charAt(0));
             parsedGTF.getFeaturesByTranscriptByGene().put(geneId, currentGene);
         }
 
@@ -340,6 +341,7 @@ public class GtfParser {
             currentGene.setGeneId(geneId);
             currentGene.setGeneSource(gene.getGeneSource());
             currentGene.setSeqName(splitLine[0]);
+            currentGene.setStrand(splitLine[6].charAt(0));
             parsedGTF.getFeaturesByTranscriptByGene().put(geneId, currentGene);
         }
 

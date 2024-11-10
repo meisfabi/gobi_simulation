@@ -12,6 +12,7 @@ public class Gene implements Interval {
     private String geneSource;
     private String geneBiotype;
     private String seqName;
+    private char strand;
     private int start;
     private int stop;
 
@@ -77,5 +78,13 @@ public class Gene implements Interval {
 
     public void setStop(int stop) {
         this.stop = stop;
+    }
+
+    public char getStrand() {
+        return strand;
+    }
+
+    public void setStrand(char strand) {
+        this.strand = strand;
     }
 }
