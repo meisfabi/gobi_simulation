@@ -1,5 +1,7 @@
 package utils;
 
+import java.util.Map;
+
 public class Constants {
     public static final int EXON_INDEX = 0;
 
@@ -15,4 +17,11 @@ public class Constants {
     public static final String CCDS_ID = "ccds_id";
     public static final String PROTEIN_ID = "protein_id";
     public static final String GENE_NAME = "gene_name";
+    public static final char[] NUCLEOTIDES = {'A', 'T', 'G', 'C'};
+    public static final Map<Character, Character> COMPLEMENT_MAP = Map.of(
+            'A', 'T',
+            'T', 'A',
+            'G', 'C',
+            'C', 'G'
+    );
 }

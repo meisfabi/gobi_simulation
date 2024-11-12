@@ -1,10 +1,11 @@
+package utils;
+
 import model.FidxEntry;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.HashMap;
 import java.util.Map;
 
 public class GenomeSequenceExtractor {
@@ -66,23 +67,26 @@ public class GenomeSequenceExtractor {
         return result.toString();
     }
 
-    private final Map<Character, Character> complementMap = Map.of(
-    'A', 'T',
-    'T', 'A',
-    'G', 'C',
-    'C', 'G'
-    );
-    public String getReverseComplement(String gene, int start, int end){
+    public static String getReverseComplement(String gene, int start, int end){
         var geneLength = gene.length();
         var seqLength = end - start;
         var subsequence = gene.substring((geneLength - start - seqLength), (geneLength - start));
         var reverseComplement = new StringBuilder();
         for (int i = subsequence.length() - 1; i >= 0; i--) {
             char base = subsequence.charAt(i);
-            reverseComplement.append(complementMap.get(base));
+            reverseComplement.append(Constants.COMPLEMENT_MAP.get(base));
         }
         return reverseComplement.toString();
     }
 
+    public static String getReverseComplement(String gene){
+        var result = new StringBuilder();
+        var geneSeq = gene.toCharArray();
 
+        for(var nuc : geneSeq){
+            result.append(Constants.COMPLEMENT_MAP.get(nuc));
+        }
+
+        return result.reverse().toString();
+    }
 }

@@ -1,6 +1,8 @@
 package model;
 
-public class FeatureRecord {
+import augmentedTree.Interval;
+
+public class FeatureRecord implements Interval {
 
         // Fields
         private String proteinId;

@@ -33,43 +33,18 @@ public class Main {
             int length = res.get("length");
             int frLength = res.get("frlength");
             int sd = res.get("SD");
-            var read_counts = res.get("readcounts");
-            var mutationRate = res.get("mutationrate");
+            var readCounts = res.get("readcounts");
+            double mutationRate = res.get("mutationrate");
             var fasta = res.get("fasta");
             var fidx = res.get("fidx");
             var gtf = res.get("gtf");
             var od = res.get("od");
             var start = System.currentTimeMillis();
-            var rcData = ReadCountParser.parse(read_counts.toString());
+            var rcData = ReadCountParser.parse(readCounts.toString());
             var fidxData = FidxParser.parse(fidx.toString());
             var gtfData = GtfParser.parse(gtf.toString(), rcData);
             logger.info(String.format("Time needed for parsing: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
-
-            var seqExtractor = new GenomeSequenceExtractor(new File(fasta.toString()), fidxData);
-            var geneSeq = new StringBuilder();
-            for(var entry : gtfData.getFeaturesByTranscriptByGene().entrySet()){
-                var gene = entry.getValue();
-                geneSeq.setLength(0);
-                geneSeq.append(seqExtractor.getSequence(gene.getSeqName(), gene.getStart(), gene.getStop()));
-
-                for(var transcript : gene.getTranscriptMapArray()[Constants.EXON_INDEX].values()){
-                    var transcriptSeq = new StringBuilder();
-                    for(var exon : transcript.getTranscriptEntry().getPositions().values()){
-                        if(exon.getStrand() == '+'){
-                            transcriptSeq.append(geneSeq, exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
-                        } else{
-                            var revComp = seqExtractor.getReverseComplement(geneSeq.toString(), exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
-                            transcriptSeq.append(revComp);
-                        }
-                    }
-
-                    var random = new Random();
-                    var fragmentLength = Math.round(Math.max(random.nextGaussian(frLength, sd), length));
-                    var position = random.nextLong(0, transcriptSeq.length() - fragmentLength);
-                    var fragment = transcriptSeq.substring((int)position, (int)(position + fragmentLength));
-                    var a = "";
-                }
-            }
+            ReadSimulation.simulate(gtfData, fasta.toString(), fidxData, frLength, sd, length, mutationRate);
 
             logger.info(String.format("Time needed for whole program: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
         } catch(ArgumentParserException e){
