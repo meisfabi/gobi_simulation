@@ -73,20 +73,18 @@ public class GenomeSequenceExtractor {
         var subsequence = gene.substring((geneLength - start - seqLength), (geneLength - start));
         var reverseComplement = new StringBuilder();
         for (int i = subsequence.length() - 1; i >= 0; i--) {
-            char base = subsequence.charAt(i);
+            var base = subsequence.charAt(i);
             reverseComplement.append(Constants.COMPLEMENT_MAP.get(base));
         }
         return reverseComplement.toString();
     }
 
     public static String getReverseComplement(String gene){
-        var result = new StringBuilder();
-        var geneSeq = gene.toCharArray();
-
-        for(var nuc : geneSeq){
-            result.append(Constants.COMPLEMENT_MAP.get(nuc));
+        var reverseComplement = new StringBuilder();
+        for (int i = 0; i < gene.length(); i++) {
+            var base = gene.charAt(i);
+            reverseComplement.append(Constants.COMPLEMENT_MAP.get(base));
         }
-
-        return result.reverse().toString();
+        return reverseComplement.toString();
     }
 }
