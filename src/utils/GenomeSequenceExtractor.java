@@ -12,6 +12,7 @@ public class GenomeSequenceExtractor {
     private RandomAccessFile raf;
     Map<String, FidxEntry> fidxData;
 
+
     public GenomeSequenceExtractor(File fasta, Map<String, FidxEntry> fidxData) throws FileNotFoundException {
         raf = new RandomAccessFile(fasta, "r");
         this.fidxData = fidxData;
@@ -71,17 +72,12 @@ public class GenomeSequenceExtractor {
         var geneLength = gene.length();
         var seqLength = end - start;
         var subsequence = gene.substring((geneLength - start - seqLength), (geneLength - start));
-        var reverseComplement = new StringBuilder();
-        for (int i = subsequence.length() - 1; i >= 0; i--) {
-            var base = subsequence.charAt(i);
-            reverseComplement.append(Constants.COMPLEMENT_MAP.get(base));
-        }
-        return reverseComplement.toString();
+        return getReverseComplement(subsequence);
     }
 
     public static String getReverseComplement(String gene){
         var reverseComplement = new StringBuilder();
-        for (int i = 0; i < gene.length(); i++) {
+        for (int i = gene.length() - 1; i >= 0; i--) {
             var base = gene.charAt(i);
             reverseComplement.append(Constants.COMPLEMENT_MAP.get(base));
         }

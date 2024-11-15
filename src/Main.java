@@ -1,21 +1,15 @@
-import model.Genes;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
-import org.apache.commons.math3.distribution.NormalDistribution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import parser.FidxParser;
 import parser.GtfParser;
 import parser.ReadCountParser;
-import utils.Constants;
-
-import java.io.File;
-import java.util.Random;
 
 public class Main {
-    private static Logger logger = LoggerFactory.getLogger(Main.class);
+    private final static Logger logger = LoggerFactory.getLogger(Main.class);
     public static void main(String[] args) {
         ArgumentParser parser = ArgumentParsers.newFor("Main").build().defaultHelp(true).description("Read Simulator");
         parser.addArgument("-length").required(true).help("read length").metavar("<Length>").type(Integer.class);
@@ -38,13 +32,13 @@ public class Main {
             var fasta = res.get("fasta");
             var fidx = res.get("fidx");
             var gtf = res.get("gtf");
-            var od = res.get("od");
+            String od = res.get("od");
             var start = System.currentTimeMillis();
             var rcData = ReadCountParser.parse(readCounts.toString());
             var fidxData = FidxParser.parse(fidx.toString());
             var gtfData = GtfParser.parse(gtf.toString(), rcData);
             logger.info(String.format("Time needed for parsing: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
-            ReadSimulation.simulate(gtfData, fasta.toString(), fidxData, frLength, sd, length, mutationRate);
+            ReadSimulation.simulate(gtfData, fasta.toString(), fidxData, frLength, sd, length, mutationRate, od);
 
             logger.info(String.format("Time needed for whole program: %s seconds", (System.currentTimeMillis() - start) / 1000.0));
         } catch(ArgumentParserException e){

@@ -1,7 +1,7 @@
-import augmentedTree.IntervalTree;
 import model.FeatureRecord;
 import model.FidxEntry;
 import model.Genes;
+import model.SimulationOutputEntry;
 import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,21 +11,22 @@ import utils.GenomeSequenceExtractor;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.SplittableRandom;
+import java.util.*;
 
 public class ReadSimulation {
     private static final SplittableRandom random = new SplittableRandom();
     private static final StringBuilder transcriptSeq = new StringBuilder();
     private static final Logger logger = LoggerFactory.getLogger(ReadSimulation.class);
 
-    public static void simulate(Genes gtfData, String fasta, Map<String, FidxEntry> fidxData, int frLength, int sd, int readLength, double mutationRate) throws FileNotFoundException, IOException {
+    public static void simulate(Genes gtfData, String fasta, Map<String, FidxEntry> fidxData, int frLength, int sd, int readLength, double mutationRate, String od) throws FileNotFoundException, IOException {
         var seqExtractor = new GenomeSequenceExtractor(new File(fasta), fidxData);
         var geneSeq = new StringBuilder();
+        var output = new ArrayList<SimulationOutputEntry>();
+        int readId = 0;
         for (var entry : gtfData.getFeaturesByTranscriptByGene().entrySet()) {
             var gene = entry.getValue();
+            var strand = gene.getStrand();
+
             geneSeq.setLength(0);
             geneSeq.append(seqExtractor.getSequence(gene.getSeqName(), gene.getStart(), gene.getStop()));
 
@@ -33,88 +34,146 @@ public class ReadSimulation {
                 transcriptSeq.setLength(0);
                 var exons = transcript.getTranscriptEntry().getPositions().values();
                 for (var exon : exons) {
-                    if (exon.getStrand() == '+') {
-                        transcriptSeq.append(geneSeq, exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
-                    } else {
-                        var revComp = GenomeSequenceExtractor.getReverseComplement(geneSeq.toString(), exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
-                        transcriptSeq.append(revComp);
-                    }
+                    transcriptSeq.append(geneSeq, exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
                 }
-                int fragmentLength;
 
-                fragmentLength = (int)Math.round(Math.max(random.nextGaussian(frLength, sd), readLength));
+                if(strand == '-'){
+                    var revComp = GenomeSequenceExtractor.getReverseComplement(transcriptSeq.toString());
+                    transcriptSeq.setLength(0);
+                    transcriptSeq.append(revComp);
+                }
 
-                if(fragmentLength > transcriptSeq.length()){
+                var fragmentLength = (int) Math.round(Math.max(random.nextGaussian(frLength, sd), readLength));
+
+                if (fragmentLength > transcriptSeq.length()) {
                     readLength = transcriptSeq.length();
                     fragmentLength = readLength;
                 }
 
                 var fragmentStartPos = random.nextLong(0, transcriptSeq.length() - fragmentLength + 1);
+
+                /*fragmentStartPos = 0;
+                readLength = 75;
+                fragmentLength = 90;
+*/
                 var fragment = transcriptSeq.substring((int) fragmentStartPos, (int) (fragmentStartPos + fragmentLength));
 
-                var startPos = random.nextInt(0, fragment.length() - readLength + 1);
-                var readSeqs = getReadSeq(fragment, startPos, readLength);
+                var fwRead = fragment.substring(0, readLength);
+                var rvRead = GenomeSequenceExtractor.getReverseComplement(fragment.substring(fragmentLength - readLength, fragmentLength));
+                var mutatedPos = new ArrayList<Integer>();
+                var mutatedSeq = simulateRead(fwRead, mutationRate, mutatedPos);
+                var mutatedRevPos = new ArrayList<Integer>();
+                var mutatedRevSeq = simulateRead(rvRead, mutationRate, mutatedRevPos);
 
-                var mutatedSeq = simulateRead(readSeqs[0], mutationRate);
-                var mutatedRevSeq = simulateRead(readSeqs[1], mutationRate);
-
-                var fwStart = fragmentStartPos + startPos;
-                var fwEnd = fragmentStartPos + startPos + readLength - 1;
-                var rwStart = fragmentStartPos + startPos + fragmentLength - readLength;
-                var rwEnd = fragmentStartPos + startPos + fragmentLength - 1;
-
+                var fwStart = fragmentStartPos;
+                var fwEnd = fragmentStartPos + readLength;
+                var fwTranscriptVector = new long[]{fwStart, fwEnd};
+                var rvStart = fragmentStartPos + fragmentLength - readLength;
+                var rvEnd = fragmentStartPos + fragmentLength;
+                var rwTranscriptVector = new long[]{rvStart, rvEnd};
                 // map back to reality
 
-                var currentPos = 0;
+                var fwGenomicRegion = getGenomicRegion(exons, fwStart, fwEnd, strand);
+                var rvGenomicRegion = getGenomicRegion(exons, rvStart, rvEnd, strand);
 
-                for (var exon : exons) {
-                    var exonStart = exon.getStart();
-                    var exonEnd = exon.getStop();
-                    var exonLength = exonEnd - exonStart + 1;
-                    if (currentPos + exonLength - 1 >= fwStart && currentPos <= fwEnd) {
-                        var startTranscript = Math.max(fwStart, currentPos);
-                        var stopTranscript = Math.min(fwEnd, currentPos + exonLength - 1);
+                var outputEntry = new SimulationOutputEntry(
+                        readId++,
+                        mutatedSeq,
+                        mutatedRevSeq,
+                        gene.getSeqName(),
+                        gene.getGeneId(),
+                        transcript.getTranscriptId(),
+                        fwTranscriptVector,
+                        rwTranscriptVector,
+                        fwGenomicRegion,
+                        rvGenomicRegion,
+                        mutatedPos,
+                        mutatedRevPos
+                );
 
-                    }
-                    currentPos += exonLength;
-
-                }
+                output.add(outputEntry);
             }
         }
+
+        Writer.writeMapping(output, od);
+        Writer.writeFastqFw(output, od + "/fw.fastq");
+        Writer.writeFastqRv(output, od + "/rw.fastq");
     }
 
-    private static String[] getReadSeq(String seq, int startPos, int length) {
+    private static String[] getReadSeq(String seq, int length) {
         return new String[]{
-            seq.substring(startPos, startPos + length),
-            GenomeSequenceExtractor.getReverseComplement(seq, startPos, startPos + length)
+                seq.substring(0, length),
+                GenomeSequenceExtractor.getReverseComplement(seq, 0,  length)
         };
     }
 
-    private static String simulateRead(String seqs, double mutationRate) {
-        var bd = new BinomialDistribution(seqs.length(), mutationRate / 100);
+    private static String simulateRead(String seq, double mutationRate, List<Integer> mutatedPositions) {
+        var bd = new BinomialDistribution(seq.length(), mutationRate / 100);
         var numMutations = bd.sample();
 
-        var seqArr = seqs.toCharArray();
+        var seqArr = seq.toCharArray();
 
-        var mutatedPositions = new HashSet<Integer>();
-
-        for(int i = 0; i < numMutations; i++){
+        for (int i = 0; i < numMutations; i++) {
             int pos;
-            do{
+            do {
                 pos = random.nextInt(seqArr.length);
-            } while(mutatedPositions.contains(pos));
+            } while (mutatedPositions.contains(pos));
 
             mutatedPositions.add(pos);
             var nuc = seqArr[pos];
             char newNuc;
 
-            do{
+            do {
                 newNuc = Constants.NUCLEOTIDES[random.nextInt(Constants.NUCLEOTIDES.length)];
-            } while(newNuc == nuc);
+            } while (newNuc == nuc);
 
             seqArr[pos] = newNuc;
         }
 
         return new String(seqArr);
+    }
+
+    private static List<Long[]> getGenomicRegion(Collection<FeatureRecord> exons, long start, long stop, char strand) {
+        var currentPos = 0L;
+        var genomicRegions = new ArrayList<Long[]>();
+
+        var exonList = new ArrayList<>(exons);
+        if (strand == '-') {
+            Collections.reverse(exonList);
+        }
+
+        for (var exon : exonList) {
+            var exonStart = exon.getStart();
+            var exonEnd = exon.getStop();
+            var exonLength = exonEnd - exonStart + 1;
+
+            var exonTranscriptStart = currentPos;
+            var exonTranscriptEnd = currentPos + exonLength - 1;
+
+
+            if (exonTranscriptEnd >= start && exonTranscriptStart <= stop) {
+                long genomicStart, genomicEnd;
+
+                var overlapStart = Math.max(start, exonTranscriptStart);
+                var overlapEnd = Math.min(stop, exonTranscriptEnd + 1);
+
+                if (strand == '+') {
+                    genomicStart = exonStart + (overlapStart - exonTranscriptStart);
+                    genomicEnd = exonStart + (overlapEnd - exonTranscriptStart);
+                } else {
+                    genomicStart = exonEnd - (overlapEnd - exonTranscriptStart) + 1;
+                    genomicEnd = exonEnd - (overlapStart - exonTranscriptStart) + 1;
+                }
+
+                genomicRegions.add(new Long[]{genomicStart, genomicEnd});
+            }
+            currentPos += exonLength;
+        }
+
+        if(strand == '-'){
+            Collections.reverse(genomicRegions);
+        }
+
+        return genomicRegions;
     }
 }
