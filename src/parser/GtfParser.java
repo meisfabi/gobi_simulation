@@ -360,6 +360,8 @@ public class GtfParser {
             transcriptMap[index] = new ConcurrentHashMap<>();
         }
 
+        transcript.setReadCount(rcData.getReadCountData().get(geneId).get(transcriptId).getReadCounts());
+
         transcriptMap[index]
                 .computeIfAbsent(transcriptId, id -> transcript)
                 .getTranscriptEntry();    }

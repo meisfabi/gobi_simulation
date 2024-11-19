@@ -1,6 +1,7 @@
 package parser;
 
 import model.ReadCountData;
+import model.ReadCountEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,6 @@ public class ReadCountParser {
 
         data.getReadCountData()
                 .computeIfAbsent(splitLine[0], id -> new ConcurrentHashMap<>())
-                .computeIfAbsent(splitLine[1], id -> Integer.parseInt(splitLine[2]));
+                .computeIfAbsent(splitLine[1], id -> new ReadCountEntry(splitLine[0], splitLine[1], Integer.parseInt(splitLine[2])));
     }
 }

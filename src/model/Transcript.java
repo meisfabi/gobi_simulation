@@ -7,6 +7,7 @@ public class Transcript implements Interval {
     private String transcriptId;
     private String transcriptName;
     private String transcriptSource;
+    private int readCount;
     private TranscriptEntry transcriptEntry;
     private int start;
     private int stop;
@@ -57,5 +58,13 @@ public class Transcript implements Interval {
 
     public void setStop(int stop) {
         this.stop = stop;
+    }
+
+    public int getReadCount() {
+        return readCount;
+    }
+
+    public void setReadCount(int readCount) {
+        this.readCount = readCount;
     }
 }

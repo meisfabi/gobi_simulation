@@ -1,6 +1,8 @@
 package utils;
 
 import model.FidxEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -11,6 +13,8 @@ import java.util.Map;
 public class GenomeSequenceExtractor {
     private RandomAccessFile raf;
     Map<String, FidxEntry> fidxData;
+
+    private static final Logger logger = LoggerFactory.getLogger(GenomeSequenceExtractor.class);
 
 
     public GenomeSequenceExtractor(File fasta, Map<String, FidxEntry> fidxData) throws FileNotFoundException {
@@ -76,11 +80,30 @@ public class GenomeSequenceExtractor {
     }
 
     public static String getReverseComplement(String gene){
-        var reverseComplement = new StringBuilder();
-        for (int i = gene.length() - 1; i >= 0; i--) {
-            var base = gene.charAt(i);
-            reverseComplement.append(Constants.COMPLEMENT_MAP.get(base));
+        int length = gene.length();
+        char[] reverseComplement = new char[length];
+        try{
+            for (int i = 0; i < length; i++) {
+                char base = gene.charAt(length - 1 - i);
+                reverseComplement[i] = switch(base){
+                    case 'A':
+                        yield 'T';
+                    case 'T':
+                        yield 'A';
+                    case 'C':
+                        yield 'G';
+                    case 'G':
+                        yield 'C';
+                    default:
+                        throw new Exception("yur");
+                };
+
+                //reverseComplement[i] = Constants.COMPLEMENT_MAP.get(base);
+            }
+            return new String(reverseComplement);
+        } catch (Exception e){
+            logger.error("Error while trying to get reverse complement", e);
         }
-        return reverseComplement.toString();
+        return null;
     }
 }
