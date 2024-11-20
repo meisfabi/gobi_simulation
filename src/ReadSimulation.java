@@ -16,78 +16,88 @@ public class ReadSimulation {
     private static final SplittableRandom random = new SplittableRandom();
     private static final StringBuilder transcriptSeq = new StringBuilder();
     private static final Logger logger = LoggerFactory.getLogger(ReadSimulation.class);
-    private static final Map<Integer, BinomialDistribution> binomialDistributionCache = new HashMap<>();
 
     public static void simulate(Genes gtfData, String fasta, Map<String, FidxEntry> fidxData, int frLength, int sd, int readLength, double mutationRate, String od) throws FileNotFoundException, IOException {
-        var seqExtractor = new GenomeSequenceExtractor(new File(fasta), fidxData);
-        var geneSeq = new StringBuilder();
-        var simulationOutputFactory = new SimulationOutputFactory();
-        var readId = new AtomicInteger(0);
-
+        final var seqExtractor = new GenomeSequenceExtractor(new File(fasta), fidxData);
+        final var geneSeq = new StringBuilder();
+        final var simulationOutputFactory = new SimulationOutputFactory();
+        final var readId = new AtomicInteger(0);
+        final var qualityString = "I".repeat(readLength);
+        lambda = readLength * (mutationRate / 100);
         try (BufferedWriter mappingWriter = new BufferedWriter(new FileWriter(od + "/read.mappinginfo")); BufferedWriter fwFastqWriter = new BufferedWriter(new FileWriter(od + "/fw.fastq")); BufferedWriter rvFastqWriter = new BufferedWriter(new FileWriter(od + "/rw.fastq"))) {
 
             Writer.writeMappingHeader(mappingWriter);
 
             for (var entry : gtfData.getFeaturesByTranscriptByGene().entrySet()) {
+                var geneId = entry.getKey();
                 var gene = entry.getValue();
                 var strand = gene.getStrand();
-
+                var chromosome = gene.getSeqName();
                 geneSeq.setLength(0);
-                geneSeq.append(seqExtractor.getSequence(gene.getSeqName(), gene.getStart(), gene.getStop()));
+                geneSeq.append(seqExtractor.getSequence(chromosome, gene.getStart(), gene.getStop()));
 
                 for (var transcript : gene.getTranscriptMapArray()[Constants.EXON_INDEX].values()) {
+                    var transcriptId = transcript.getTranscriptId();
                     var readCount = transcript.getReadCount();
                     transcriptSeq.setLength(0);
-                    var exons = transcript.getTranscriptEntry().getPositions().values();
+                    var exons = transcript.getTranscriptEntry().getPositions();
                     for (var exon : exons) {
                         transcriptSeq.append(geneSeq, exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
                     }
 
+                    var forwardSeq = transcriptSeq.toString();
+                    String otherSeq = null;
+
                     if (strand == '-') {
-                        var revComp = GenomeSequenceExtractor.getReverseComplement(transcriptSeq.toString());
+                        otherSeq = forwardSeq;
                         transcriptSeq.setLength(0);
-                        transcriptSeq.append(revComp);
+                        transcriptSeq.append(GenomeSequenceExtractor.getReverseComplement(forwardSeq));
+                    } else{
+                        otherSeq = GenomeSequenceExtractor.getReverseComplement(forwardSeq);
                     }
+
+                    var transcriptLength = transcriptSeq.length();
 
                     for (int i = 0; i < readCount; i++) {
                         int fragmentLength;
 
-                        do{
+                        do {
                             fragmentLength = (int) Math.round(random.nextGaussian(frLength, sd));
-                        } while (fragmentLength < readLength || transcriptSeq.length() < fragmentLength);
+                        } while (fragmentLength < readLength || transcriptLength < fragmentLength);
 
-                        var binomialDistribution = binomialDistributionCache.computeIfAbsent(readLength, rl ->
-                                new BinomialDistribution(rl, mutationRate / 100)
-                        );
+                        var fragmentStartPos = random.nextInt(0, transcriptLength - fragmentLength + 1);
 
-                        var fragmentStartPos = random.nextLong(0, transcriptSeq.length() - fragmentLength + 1);
-                        var fragment = transcriptSeq.substring((int) fragmentStartPos, (int) (fragmentStartPos + fragmentLength));
+                        //fragmentStartPos = 781;
+                        //fragmentLength = 87;
 
-                        var fwRead = fragment.substring(0, readLength);
-                        var rvRead = GenomeSequenceExtractor.getReverseComplement(fragment.substring(fragmentLength - readLength, fragmentLength));
-                        var mutatedPos = new ArrayList<Integer>();
-                        var mutatedSeq = simulateRead(fwRead, binomialDistribution, mutatedPos);
-                        var mutatedRevPos = new ArrayList<Integer>();
-                        var mutatedRevSeq = simulateRead(rvRead, binomialDistribution, mutatedRevPos);
+                        var fwRead = transcriptSeq.substring(fragmentStartPos, fragmentStartPos + readLength);
+                        String rvRead;
+
+                        if (strand == '-') {
+                            rvRead = forwardSeq.substring(transcriptLength - fragmentStartPos - fragmentLength, transcriptLength - fragmentStartPos - fragmentLength + readLength);
+                        } else {
+                            rvRead = otherSeq.substring(transcriptLength - fragmentStartPos - fragmentLength, transcriptLength - fragmentStartPos - fragmentLength + readLength);
+                        }
+
+                        var mutatedPos = new TreeSet<Integer>();
+                        var mutatedSeq = simulateRead(fwRead, mutatedPos);
+                        var mutatedRevPos = new TreeSet<Integer>();
+                        var mutatedRevSeq = simulateRead(rvRead, mutatedRevPos);
 
                         var fwStart = fragmentStartPos;
                         var fwEnd = fragmentStartPos + readLength;
-                        var fwTranscriptVector = new long[]{fwStart, fwEnd};
+                        var fwTranscriptVector = new int[]{fwStart, fwEnd};
                         var rvStart = fragmentStartPos + fragmentLength - readLength;
                         var rvEnd = fragmentStartPos + fragmentLength;
-                        var rwTranscriptVector = new long[]{rvStart, rvEnd};
+                        var rwTranscriptVector = new int[]{rvStart, rvEnd};
 
-                        // map back to reality
-
+                        // Map back to reality
                         var genomicRegions = getGenomicRegions(exons, fwStart, fwEnd, rvStart, rvEnd, strand);
                         var fwGenomicRegion = genomicRegions[0];
                         var rvGenomicRegion = genomicRegions[1];
 
                         var outputEntry = simulationOutputFactory.createObject()
                                 .withReadId(readId.getAndIncrement())
-                                .withChromosome(gene.getSeqName())
-                                .withGeneId(gene.getGeneId())
-                                .withTranscriptId(transcript.getTranscriptId())
                                 .withTranscriptFwRegionVectors(fwTranscriptVector)
                                 .withTranscriptRvRegionVectors(rwTranscriptVector)
                                 .withGenomeFwRegionVectors(fwGenomicRegion)
@@ -96,22 +106,36 @@ public class ReadSimulation {
                                 .withRvMutationIdx(mutatedRevPos)
                                 .build();
 
-                        Writer.writeMapping(mappingWriter, outputEntry);
-                        Writer.writeFastq(fwFastqWriter, outputEntry.getReadId(), mutatedSeq);
-                        Writer.writeFastq(rvFastqWriter, outputEntry.getReadId(), mutatedRevSeq);
+                        var currentReadId = outputEntry.getReadId();
+                        Writer.writeMapping(mappingWriter, outputEntry, currentReadId, chromosome, geneId, transcriptId);
+                        Writer.writeFastq(fwFastqWriter, currentReadId, mutatedSeq, qualityString);
+                        Writer.writeFastq(rvFastqWriter, currentReadId, mutatedRevSeq, qualityString);
                     }
                 }
+
             }
         } catch (Exception e) {
             logger.error("Error while simulating reads", e);
         }
     }
 
+    private static double lambda;
+    public static int samplePoisson() {
+        double l = Math.exp(-lambda);
+        int k = 0;
+        double p = 1.0;
 
-    private static String simulateRead(String seq, BinomialDistribution bd, List<Integer> mutatedPositions) {
+        do {
+            k++;
+            p *= random.nextDouble();
+        } while (p > l);
 
-        var numMutations = bd.sample();
+        return k - 1;
+    }
 
+    private static String simulateRead(String seq, Set<Integer> mutatedPositions) {
+
+        var numMutations = samplePoisson();
         var seqArr = seq.toCharArray();
 
         for (int i = 0; i < numMutations; i++) {
@@ -134,39 +158,43 @@ public class ReadSimulation {
         return new String(seqArr);
     }
 
-    private static List<Long[]>[] getGenomicRegions(
-            Collection<FeatureRecord> exons,
-            long fwStart, long fwEnd,
-            long rvStart, long rvEnd,
+    private static List<int[]>[] getGenomicRegions(
+            TreeSet<FeatureRecord> exons,
+            int fwStart, int fwEnd,
+            int rvStart, int rvEnd,
             char strand) {
 
-        var currentPos = 0L;
-        var fwGenomicRegions = new ArrayList<Long[]>();
-        var rvGenomicRegions = new ArrayList<Long[]>();
+        var currentPos = 0;
+        var fwGenomicRegions = new ArrayList<int[]>();
+        var rvGenomicRegions = new ArrayList<int[]>();
 
-        var exonList = new ArrayList<>(exons);
-
+        // Reverse iteration if needed
+        Set<FeatureRecord> iterableExons = exons;
         if (strand == '-') {
-            Collections.reverse(exonList);
+            iterableExons = exons.descendingSet();
         }
 
-        for (var exon : exonList) {
+        for (var exon : iterableExons) {
             var exonStart = exon.getStart();
             var exonEnd = exon.getStop();
             var exonLength = exonEnd - exonStart + 1;
             var exonTranscriptStart = currentPos;
             var exonTranscriptEnd = currentPos + exonLength - 1;
+            var posExceededFwStart = false;
 
             if (exonTranscriptStart >= Math.max(fwEnd, rvEnd)) {
                 break;
             }
 
-            // Verarbeitung der fwGenomicRegion
-            if (exonTranscriptEnd >= fwStart && exonTranscriptStart < fwEnd) {
+            if (exonTranscriptStart >= fwEnd) {
+                posExceededFwStart = true;
+            }
+
+            if (exonTranscriptEnd >= fwStart && !posExceededFwStart) {
                 var overlapStart = Math.max(fwStart, exonTranscriptStart);
                 var overlapEnd = Math.min(fwEnd, exonTranscriptEnd + 1);
 
-                long genomicStart, genomicEnd;
+                int genomicStart, genomicEnd;
                 if (strand == '+') {
                     genomicStart = exonStart + (overlapStart - exonTranscriptStart);
                     genomicEnd = exonStart + (overlapEnd - exonTranscriptStart);
@@ -175,15 +203,19 @@ public class ReadSimulation {
                     genomicEnd = exonEnd - (overlapStart - exonTranscriptStart) + 1;
                 }
 
-                fwGenomicRegions.add(new Long[]{genomicStart, genomicEnd});
+                fwGenomicRegions.add(new int[]{genomicStart, genomicEnd});
             }
 
-            // Verarbeitung der rvGenomicRegion
-            if (exonTranscriptEnd >= rvStart && exonTranscriptStart < rvEnd) {
+            if (exonTranscriptStart >= rvEnd) {
+                currentPos += exonLength;
+                continue;
+            }
+
+            if (exonTranscriptEnd >= rvStart) {
                 var overlapStart = Math.max(rvStart, exonTranscriptStart);
                 var overlapEnd = Math.min(rvEnd, exonTranscriptEnd + 1);
 
-                long genomicStart, genomicEnd;
+                int genomicStart, genomicEnd;
                 if (strand == '+') {
                     genomicStart = exonStart + (overlapStart - exonTranscriptStart);
                     genomicEnd = exonStart + (overlapEnd - exonTranscriptStart);
@@ -192,17 +224,13 @@ public class ReadSimulation {
                     genomicEnd = exonEnd - (overlapStart - exonTranscriptStart) + 1;
                 }
 
-                rvGenomicRegions.add(new Long[]{genomicStart, genomicEnd});
+                rvGenomicRegions.add(new int[]{genomicStart, genomicEnd});
             }
 
             currentPos += exonLength;
         }
 
-        if (strand == '-') {
-            Collections.reverse(fwGenomicRegions);
-            Collections.reverse(rvGenomicRegions);
-        }
-
+        // No need to reverse if already handled by descendingSet
         return new List[]{fwGenomicRegions, rvGenomicRegions};
     }
 }

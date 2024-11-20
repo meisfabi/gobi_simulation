@@ -22,7 +22,7 @@ public class ReadCountParser {
         data = new ReadCountData();
 
         try (Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8)) {
-            lines//.parallel()
+            lines.parallel()
                     .filter(line -> !line.trim().isEmpty() && !line.startsWith("gene"))
                     .forEach(line -> processLine(line.trim()));
         } catch (Exception e) {

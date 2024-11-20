@@ -2,7 +2,9 @@ package model;
 
 import augmentedTree.Interval;
 
-public class FeatureRecord implements Interval {
+import java.util.Objects;
+
+public class FeatureRecord implements Interval, Comparable<FeatureRecord> {
 
         // Fields
         private String proteinId;
@@ -105,6 +107,23 @@ public class FeatureRecord implements Interval {
         public void setTag(String tag) {
             this.tag = tag;
         }
+
+
+    @Override
+    public int compareTo(FeatureRecord other) {
+        // First, compare by start
+        int startComparison = Integer.compare(this.start, other.start);
+        if (startComparison != 0) {
+            return startComparison;
+        }
+        // If starts are equal, compare by stop
+        return Integer.compare(this.stop, other.stop);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(start, stop);
+    }
 }
 
 

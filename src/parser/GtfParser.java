@@ -27,7 +27,7 @@ public class GtfParser {
         Path path = Path.of(inputPath);
 
         try (Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8)) {
-            lines//.parallel()
+            lines.parallel()
                     .filter(line -> !line.trim().isEmpty() && !line.startsWith("#"))
                     .forEach(line -> processLine(line.trim(), rcData));
         } catch (Exception e) {
@@ -273,7 +273,7 @@ public class GtfParser {
                 .computeIfAbsent(transcriptId, id -> transcript)
                 .getTranscriptEntry();
 
-        transcriptEntry.addRecord(featureRecord.getStart(), featureRecord);
+        transcriptEntry.addRecord(featureRecord);
     }
 
     private static void read_transcript(ReadCountData rcData, String[] splitLine, ArrayList<String> attributes, StringBuilder stringBuilder){

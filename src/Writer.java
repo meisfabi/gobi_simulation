@@ -7,6 +7,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 public class Writer {
@@ -20,76 +21,75 @@ public class Writer {
         }
     }
 
-    public static void writeMapping(BufferedWriter writer, SimulationOutputEntry simulationEntry) {
+    private final static StringBuilder result = new StringBuilder();
+
+    public static void writeMapping(BufferedWriter writer, SimulationOutputEntry simulationEntry, int readId, String chromosome, String geneId, String transcriptId) {
         try {
-            writer.write(String.format("%s\t%s\t%s\t%s\t",
-                    simulationEntry.getReadId(),
-                    simulationEntry.getChromosome(),
-                    simulationEntry.getGeneId(),
-                    simulationEntry.getTranscriptId()));
+            result.setLength(0);
+
+            result.append(readId).append("\t")
+                    .append(chromosome).append("\t")
+                    .append(geneId).append("\t")
+                    .append(transcriptId).append("\t");
 
             var tFwRegVec = simulationEntry.getTranscriptFwRegionVectors();
             if (tFwRegVec.length != 2) {
-                tFwRegVec = new long[2];
+                tFwRegVec = new int[2];
                 logger.warn("You are a failure");
             }
+            result.append(tFwRegVec[0]).append("-").append(tFwRegVec[1]).append("\t");
 
-            writer.write(String.format("%s-%s\t", tFwRegVec[0], tFwRegVec[1]));
-
+            // Verarbeitung der tRvRegVec
             var tRvRegVec = simulationEntry.getTranscriptRvRegionVectors();
             if (tRvRegVec.length != 2) {
-                tRvRegVec = new long[2];
+                tRvRegVec = new int[2];
                 logger.warn("You are a failure");
             }
-            writer.write(String.format("%s-%s\t", tRvRegVec[0], tRvRegVec[1]));
+            result.append(tRvRegVec[0]).append("-").append(tRvRegVec[1]).append("\t");
+
             var genomicFw = simulationEntry.getGenomeFwRegionVectors();
-
             var firstFwVec = genomicFw.getFirst();
+            result.append(firstFwVec[0]).append("-").append(firstFwVec[1]);
 
-
-            writer.write(String.format("%s-%s", firstFwVec[0], firstFwVec[1]));
             for (int i = 1; i < genomicFw.size(); i++) {
                 var vec = genomicFw.get(i);
-                writer.write(String.format("|%s-%s", vec[0], vec[1]));
+                result.append("|").append(vec[0]).append("-").append(vec[1]);
             }
-            writer.write("\t");
+            result.append("\t");
 
             var genomicRw = simulationEntry.getGenomeRvRegionVectors();
-            if (!(genomicRw == null || genomicRw.isEmpty())) {
+            if (genomicRw != null && !genomicRw.isEmpty()) {
                 var firstRvVec = genomicRw.getFirst();
-
-                writer.write(String.format("%s-%s", firstRvVec[0], firstRvVec[1]));
+                result.append(firstRvVec[0]).append("-").append(firstRvVec[1]);
                 for (int i = 1; i < genomicRw.size(); i++) {
                     var vec = genomicRw.get(i);
-                    writer.write(String.format("|%s-%s", vec[0], vec[1]));
+                    result.append("|").append(vec[0]).append("-").append(vec[1]);
                 }
             }
-
-
-            writer.write("\t");
+            result.append("\t");
 
             var fwMutationPos = simulationEntry.getFwMutationIdx();
-            if (!fwMutationPos.isEmpty()) {
-                writer.write(String.valueOf(fwMutationPos.getFirst()));
-                for (int i = 1; i < fwMutationPos.size(); i++) {
-                    writer.write(",");
-                    writer.write(String.valueOf(fwMutationPos.get(i)));
-                    ;
+            if (fwMutationPos != null && !fwMutationPos.isEmpty()) {
+                var fwIterator = fwMutationPos.iterator();
+                result.append(fwIterator.next());
+                while (fwIterator.hasNext()) {
+                    result.append(",").append(fwIterator.next());
                 }
             }
-
-            writer.write("\t");
+            result.append("\t");
 
             var rvMutationPos = simulationEntry.getRvMutationIdx();
             if (rvMutationPos != null && !rvMutationPos.isEmpty()) {
-                writer.write(String.valueOf(rvMutationPos.getFirst()));
-                for (int i = 1; i < rvMutationPos.size(); i++) {
-                    writer.write(",");
-                    writer.write(String.valueOf(rvMutationPos.get(i)));
-                    ;
+                var rvIterator = rvMutationPos.iterator();
+                result.append(rvIterator.next());
+                while (rvIterator.hasNext()) {
+                    result.append(",").append(rvIterator.next());
                 }
             }
-            writer.write("\n");
+            result.append("\n");
+
+            writer.write(result.toString());
+
         } catch (IOException e) {
             logger.warn("Error while reading line", e);
         }
@@ -97,15 +97,17 @@ public class Writer {
 
     private static final Map<Integer, String> qualityCache = new HashMap<>();
 
-    private static String getQualityString(int length) {
-        return qualityCache.computeIfAbsent(length, "I"::repeat);
-    }
-
-    public static void writeFastq(BufferedWriter writer, int readId, String seq) {
+    private static final StringBuilder sb = new StringBuilder();
+    public static void writeFastq(BufferedWriter writer, int readId, String seq, String qualityString) {
         try {
+            sb.setLength(0);
             var valOfReadId = String.valueOf(readId);
-            writer.write("@" + valOfReadId + "\n" + seq + "\n+" + valOfReadId + "\n");
-            writer.write(getQualityString(seq.length()) + "\n");
+
+            sb.append("@").append(valOfReadId).append("\n")
+                    .append(seq).append("\n+").append(valOfReadId).append("\n")
+                    .append(qualityString).append("\n");
+
+            writer.write(sb.toString());
         } catch (IOException e) {
             logger.error("Error while trying to write to file", e);
         }

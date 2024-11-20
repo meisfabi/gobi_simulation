@@ -1,127 +1,68 @@
 package model;
 
-import pooling.ObjectFactory;
-
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 public class SimulationOutputEntry {
+
     private int readId;
-    private String chromosome;
-    private String geneId;
-    private String transcriptId;
+    private int[] transcriptFwRegionVectors;
+    private int[] transcriptRvRegionVectors;
+    private List<int[]> genomeFwRegionVectors;
+    private List<int[]> genomeRvRegionVectors;
+    private Set<Integer> fwMutationIdx;
+    private Set<Integer> rvMutationIdx;
 
-
-    private String mutatedFwSeq;
-    private String mutatedRvSeq;
-    private long[] transcriptFwRegionVectors;
-    private long[] transcriptRvRegionVectors;
-    private List<Long[]> genomeFwRegionVectors;
-    private List<Long[]> genomeRvRegionVectors;
-    private List<Integer> fwMutationIdx;
-    private List<Integer> rvMutationIdx;
-
-    public SimulationOutputEntry(int readId, String mutatedFwSeq, String mutatedRvSeq, String chromosome, String geneId, String transcriptId, long[] transcriptFwRegionVectors, long[] transcriptRvRegionVectors, List<Long[]> genomeFwRegionVectors, List<Long[]> genomeRvRegionVectors, List<Integer> fwMutationIdx, List<Integer> rvMutationIdx) {
-        this.readId = readId;
-        this.chromosome = chromosome;
-        this.geneId = geneId;
-        this.transcriptId = transcriptId;
-        this.transcriptFwRegionVectors = transcriptFwRegionVectors;
-        this.transcriptRvRegionVectors = transcriptRvRegionVectors;
-        this.genomeFwRegionVectors = genomeFwRegionVectors;
-        this.genomeRvRegionVectors = genomeRvRegionVectors;
-        this.fwMutationIdx = fwMutationIdx;
-        this.rvMutationIdx = rvMutationIdx;
-        this.mutatedFwSeq = mutatedFwSeq;
-        this.mutatedRvSeq = mutatedRvSeq;
-    }
-
-    public SimulationOutputEntry(Builder builder){
+    public SimulationOutputEntry(Builder builder) {
         this.readId = builder.readId;
-        this.chromosome = builder.chromosome;
-        this.geneId = builder.geneId;
-        this.transcriptId = builder.transcriptId;
         this.transcriptFwRegionVectors = builder.transcriptFwRegionVectors;
         this.transcriptRvRegionVectors = builder.transcriptRvRegionVectors;
         this.genomeFwRegionVectors = builder.genomeFwRegionVectors;
         this.genomeRvRegionVectors = builder.genomeRvRegionVectors;
         this.fwMutationIdx = builder.fwMutationIdx;
         this.rvMutationIdx = builder.rvMutationIdx;
-        this.mutatedFwSeq = builder.mutatedFwSeq;
-        this.mutatedRvSeq = builder.mutatedRvSeq;
     }
 
     public static class Builder {
         private int readId;
-        private String chromosome;
-        private String geneId;
-        private String transcriptId;
-        private String mutatedFwSeq;
-        private String mutatedRvSeq;
-        private long[] transcriptFwRegionVectors;
-        private long[] transcriptRvRegionVectors;
-        private List<Long[]> genomeFwRegionVectors;
-        private List<Long[]> genomeRvRegionVectors;
-        private List<Integer> fwMutationIdx;
-        private List<Integer> rvMutationIdx;
+        private int[] transcriptFwRegionVectors;
+        private int[] transcriptRvRegionVectors;
+        private List<int[]> genomeFwRegionVectors;
+        private List<int[]> genomeRvRegionVectors;
+        private Set<Integer> fwMutationIdx;
+        private Set<Integer> rvMutationIdx;
 
         public Builder withReadId(int readId) {
             this.readId = readId;
             return this;
         }
 
-        public Builder withChromosome(String chromosome) {
-            this.chromosome = chromosome;
-            return this;
-        }
-
-        public Builder withGeneId(String geneId) {
-            this.geneId = geneId;
-            return this;
-        }
-
-        public Builder withTranscriptId(String transcriptId) {
-            this.transcriptId = transcriptId;
-            return this;
-        }
-
-        public Builder withMutatedFwSeq(String mutatedFwSeq) {
-            this.mutatedFwSeq = mutatedFwSeq;
-            return this;
-        }
-
-        public Builder withMutatedRvSeq(String mutatedRvSeq) {
-            this.mutatedRvSeq = mutatedRvSeq;
-            return this;
-        }
-
-        public Builder withTranscriptFwRegionVectors(long[] transcriptFwRegionVectors) {
+        public Builder withTranscriptFwRegionVectors(int[] transcriptFwRegionVectors) {
             this.transcriptFwRegionVectors = transcriptFwRegionVectors;
             return this;
         }
 
-        public Builder withTranscriptRvRegionVectors(long[] transcriptRvRegionVectors) {
+        public Builder withTranscriptRvRegionVectors(int[] transcriptRvRegionVectors) {
             this.transcriptRvRegionVectors = transcriptRvRegionVectors;
             return this;
         }
 
-        public Builder withGenomeFwRegionVectors(List<Long[]> genomeFwRegionVectors){
+        public Builder withGenomeFwRegionVectors(List<int[]> genomeFwRegionVectors) {
             this.genomeFwRegionVectors = genomeFwRegionVectors;
             return this;
         }
 
-        public Builder withFwMutationIdx(List<Integer> fwMutationIdx){
+        public Builder withFwMutationIdx(Set<Integer> fwMutationIdx) {
             this.fwMutationIdx = fwMutationIdx;
             return this;
         }
 
-        public Builder withRvMutationIdx(List<Integer> rvMutationIdx){
+        public Builder withRvMutationIdx(Set<Integer> rvMutationIdx) {
             this.rvMutationIdx = rvMutationIdx;
             return this;
         }
 
-        public Builder withGenomeRvRegionVectors(List<Long[]> genomeRvRegionVectors){
+        public Builder withGenomeRvRegionVectors(List<int[]> genomeRvRegionVectors) {
             this.genomeRvRegionVectors = genomeRvRegionVectors;
             return this;
         }
@@ -132,52 +73,31 @@ public class SimulationOutputEntry {
         }
     }
 
-    public int getReadId() {
-        return readId;
-    }
-
-    public String getChromosome() {
-        return chromosome;
-    }
-
-    public String getGeneId() {
-        return geneId;
-    }
-
-    public String getTranscriptId() {
-        return transcriptId;
-    }
-
-    public long[] getTranscriptFwRegionVectors() {
+    public int[] getTranscriptFwRegionVectors() {
         return transcriptFwRegionVectors;
     }
 
-    public long[] getTranscriptRvRegionVectors() {
+    public int[] getTranscriptRvRegionVectors() {
         return transcriptRvRegionVectors;
     }
 
-    public List<Long[]> getGenomeFwRegionVectors() {
+    public List<int[]> getGenomeFwRegionVectors() {
         return genomeFwRegionVectors;
     }
 
-    public List<Long[]> getGenomeRvRegionVectors() {
+    public List<int[]> getGenomeRvRegionVectors() {
         return genomeRvRegionVectors;
     }
 
-    public List<Integer> getFwMutationIdx() {
+    public Set<Integer> getFwMutationIdx() {
         return fwMutationIdx;
     }
 
-    public List<Integer> getRvMutationIdx() {
+    public Set<Integer> getRvMutationIdx() {
         return rvMutationIdx;
     }
 
-    public String getMutatedFwSeq() {
-        return mutatedFwSeq;
+    public int getReadId() {
+        return readId;
     }
-
-    public String getMutatedRvSeq() {
-        return mutatedRvSeq;
-    }
-
 }

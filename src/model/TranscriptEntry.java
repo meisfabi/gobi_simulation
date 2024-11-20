@@ -1,17 +1,18 @@
 package model;
 
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 public class TranscriptEntry {
 
 
-    private final TreeMap<Integer, FeatureRecord> positions = new TreeMap<>();
+    private final TreeSet<FeatureRecord> positions = new TreeSet<>();
 
-    public void addRecord(int start, FeatureRecord record) {
-        positions.put(start, record);
+    public void addRecord(FeatureRecord record) {
+        positions.add(record);
     }
 
-    public TreeMap<Integer, FeatureRecord> getPositions() {
+    public TreeSet<FeatureRecord> getPositions() {
         return positions;
     }
 }

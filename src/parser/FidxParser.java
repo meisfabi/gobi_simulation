@@ -13,20 +13,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
 public class FidxParser {
     private static int errorLines;
     private static Logger logger = LoggerFactory.getLogger(FidxParser.class);
-    private static Map<String, FidxEntry> data;
+    private static ConcurrentMap<String, FidxEntry> data;
     public static Map<String, FidxEntry> parse(String inputPath) {
         errorLines = 0;
         logger.info("Starting to parse fidx file");
-        data = new HashMap<>();
+        data = new ConcurrentHashMap<>();
         Path path = Path.of(inputPath);
 
         try (Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8)) {
-            lines//.parallel()
+            lines.parallel()
                     .filter(line -> !line.trim().isEmpty())
                     .forEach(line -> processLine(line.trim()));
         } catch (Exception e) {
