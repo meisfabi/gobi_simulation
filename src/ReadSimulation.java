@@ -11,6 +11,7 @@ import utils.GenomeSequenceExtractor;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,11 +23,11 @@ public class ReadSimulation {
 
 
 
-    public static void simulate(Genes gtfData, String fasta, Map<String, FidxEntry> fidxData, int frLength, int sd, int readLength, double mutationRate, String od) throws FileNotFoundException, IOException {
+    public static void simulate(Genes gtfData, String fasta, ConcurrentMap<String, FidxEntry> fidxData, int frLength, int sd, int readLength, double mutationRate, String od) throws FileNotFoundException, IOException {
         final var simulationOutputFactory = new SimulationOutputFactory();
         final var readId = new AtomicInteger(0);
         final var qualityString = "I".repeat(readLength);
-        lambda = Math.exp(-(readLength * (mutationRate / 100)));
+        L = Math.exp(-(readLength * (mutationRate / 100)));
         var numberOfThreads = Runtime.getRuntime().availableProcessors();
         var executor = Executors.newFixedThreadPool(numberOfThreads);
         var seqExtractor = new GenomeSequenceExtractor(new File(fasta), fidxData);
@@ -45,7 +46,7 @@ public class ReadSimulation {
                     var chromosome = gene.getSeqName();
                     var geneSeq = (seqExtractor.getSequence(chromosome, gene.getStart(), gene.getStop()));
 
-                    for (var transcript : gene.getTranscriptMapArray()[Constants.EXON_INDEX].values()) {
+                    for (var transcript : gene.getTranscriptMap().values()) {
                         var transcriptSeq = new StringBuilder();
                         var transcriptId = transcript.getTranscriptId();
                         var readCount = transcript.getReadCount();
@@ -68,8 +69,6 @@ public class ReadSimulation {
                         var transcriptLength = transcriptSeq.length();
 
                         for (int i = 0; i < readCount; i++) {
-
-
                             var random = threadLocalRandom.get();
 
                             int fragmentLength;
@@ -141,7 +140,7 @@ public class ReadSimulation {
         }
     }
 
-    private static double lambda;
+    private static double L;
 
     public static int samplePoisson(SplittableRandom random) {
         var k = 0;
@@ -150,7 +149,7 @@ public class ReadSimulation {
         do {
             k++;
             p *= random.nextDouble();
-        } while (p > lambda);
+        } while (p > L);
 
         return k - 1;
     }

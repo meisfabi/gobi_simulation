@@ -21,7 +21,7 @@ public class FidxParser {
     private static int errorLines;
     private static Logger logger = LoggerFactory.getLogger(FidxParser.class);
     private static ConcurrentMap<String, FidxEntry> data;
-    public static Map<String, FidxEntry> parse(String inputPath) {
+    public static ConcurrentMap<String, FidxEntry> parse(String inputPath) {
         errorLines = 0;
         logger.info("Starting to parse fidx file");
         data = new ConcurrentHashMap<>();

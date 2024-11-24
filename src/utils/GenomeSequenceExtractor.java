@@ -11,28 +11,17 @@ import java.io.RandomAccessFile;
 import java.util.Map;
 
 public class GenomeSequenceExtractor {
-    // private RandomAccessFile raf;
+    private final RandomAccessFile raf;
     Map<String, FidxEntry> fidxData;
-    private File fasta;
     private static final Logger logger = LoggerFactory.getLogger(GenomeSequenceExtractor.class);
 
 
     public GenomeSequenceExtractor(File fasta, Map<String, FidxEntry> fidxData) throws FileNotFoundException {
-        this.fasta = fasta;
-        // raf = new RandomAccessFile(fasta, "r");
+        raf = new RandomAccessFile(fasta, "r");
         this.fidxData = fidxData;
     }
 
-    private final ThreadLocal<RandomAccessFile> threadLocalRaf = ThreadLocal.withInitial(() -> {
-        try {
-            return new RandomAccessFile(fasta, "r");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    });
-
-    public String getSequence(String chr, int start, int end) throws IOException {
-        var raf = threadLocalRaf.get();
+    public synchronized String getSequence(String chr, int start, int end) throws IOException {
         var fidx = fidxData.get(chr);
         var lineLength = fidx.getLineLength();
         var lineLengthWithNewline = fidx.getLineLengthWithNewLine();
@@ -45,9 +34,14 @@ public class GenomeSequenceExtractor {
         var realStart = fidx.getStart() + start + totalLinebreaks - 1;
 
         var position = 0;
+
         raf.seek(realStart);
+
+
         var tempBuffer = new byte[Math.min(end - start + 1, lineLength)];
+
         raf.readFully(tempBuffer);
+
 
         for (var b : tempBuffer) {
             var value = b & 0xFF;
@@ -68,9 +62,9 @@ public class GenomeSequenceExtractor {
         var bytesToRead = end - start - position - (newLineLength - 1) + 1;
         var bytesRead = 0;
 
-        while(bytesRead < bytesToRead){
+        while (bytesRead < bytesToRead) {
             var currentBytesToRead = Math.min(lineLength, bytesToRead - bytesRead);
-            if(tempBuffer.length != currentBytesToRead)
+            if (tempBuffer.length != currentBytesToRead)
                 tempBuffer = new byte[currentBytesToRead];
 
             raf.readFully(tempBuffer);
@@ -82,20 +76,20 @@ public class GenomeSequenceExtractor {
         return result.toString();
     }
 
-    public static String getReverseComplement(String gene, int start, int end){
+    public static String getReverseComplement(String gene, int start, int end) {
         var geneLength = gene.length();
         var seqLength = end - start;
         var subsequence = gene.substring((geneLength - start - seqLength), (geneLength - start));
         return getReverseComplement(subsequence);
     }
 
-    public static String getReverseComplement(String gene){
+    public static String getReverseComplement(String gene) {
         int length = gene.length();
         char[] reverseComplement = new char[length];
-        try{
+        try {
             for (int i = 0; i < length; i++) {
                 char base = gene.charAt(length - 1 - i);
-                reverseComplement[i] = switch(base){
+                reverseComplement[i] = switch (base) {
                     case 'A':
                         yield 'T';
                     case 'T':
@@ -109,7 +103,7 @@ public class GenomeSequenceExtractor {
                 };
             }
             return new String(reverseComplement);
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error("Error while trying to get reverse complement", e);
         }
         return null;

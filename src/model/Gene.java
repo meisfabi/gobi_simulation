@@ -16,17 +16,10 @@ public class Gene implements Interval {
     private int start;
     private int stop;
 
-    private volatile Map<String, Transcript>[] transcriptMapArray;
+    private final Map<String, Transcript> transcriptMap = new ConcurrentHashMap<>();
 
-    public Map<String, Transcript>[] getTranscriptMapArray() {
-        if (transcriptMapArray == null) {
-            synchronized (this) {
-                if (transcriptMapArray == null) {
-                    transcriptMapArray = new ConcurrentMap[1];
-                }
-            }
-        }
-        return transcriptMapArray;
+    public Map<String, Transcript> getTranscriptMap() {
+        return transcriptMap;
     }
 
     public String getGeneName() {
