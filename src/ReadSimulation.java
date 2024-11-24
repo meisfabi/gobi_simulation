@@ -10,71 +10,72 @@ import utils.GenomeSequenceExtractor;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 
 public class ReadSimulation {
-    private static final StringBuilder transcriptSeq = new StringBuilder();
     private static final Logger logger = LoggerFactory.getLogger(ReadSimulation.class);
     private static final Object writeLock = new Object();
-    private static final SplittableRandom random = new SplittableRandom();
-    private static final ConcurrentHashMap<Long, SplittableRandom> randomPool = new ConcurrentHashMap<>();
+    // private static final ConcurrentHashMap<Long, SplittableRandom> randomPool = new ConcurrentHashMap<>();
+    private static final ThreadLocal<SplittableRandom> threadLocalRandom = ThreadLocal.withInitial(SplittableRandom::new);
+
+
+
     public static void simulate(Genes gtfData, String fasta, Map<String, FidxEntry> fidxData, int frLength, int sd, int readLength, double mutationRate, String od) throws FileNotFoundException, IOException {
-        final var seqExtractor = new GenomeSequenceExtractor(new File(fasta), fidxData);
-        final var geneSeq = new StringBuilder();
         final var simulationOutputFactory = new SimulationOutputFactory();
         final var readId = new AtomicInteger(0);
         final var qualityString = "I".repeat(readLength);
         lambda = Math.exp(-(readLength * (mutationRate / 100)));
         var numberOfThreads = Runtime.getRuntime().availableProcessors();
         var executor = Executors.newFixedThreadPool(numberOfThreads);
-        var minZ = (readLength - frLength) / (double)sd;
+        var seqExtractor = new GenomeSequenceExtractor(new File(fasta), fidxData);
         try (BufferedWriter mappingWriter = new BufferedWriter(new FileWriter(od + "/read.mappinginfo")); BufferedWriter fwFastqWriter = new BufferedWriter(new FileWriter(od + "/fw.fastq")); BufferedWriter rvFastqWriter = new BufferedWriter(new FileWriter(od + "/rw.fastq"))) {
 
             Writer.writeMappingHeader(mappingWriter);
 
 
-
+            var tasks = new ArrayList<Callable<Void>>();
             for (var entry : gtfData.getFeaturesByTranscriptByGene().entrySet()) {
-                var geneId = entry.getKey();
-                var gene = entry.getValue();
-                var strand = gene.getStrand();
-                var chromosome = gene.getSeqName();
-                geneSeq.setLength(0);
-                geneSeq.append(seqExtractor.getSequence(chromosome, gene.getStart(), gene.getStop()));
+                tasks.add(() -> {
 
-                for (var transcript : gene.getTranscriptMapArray()[Constants.EXON_INDEX].values()) {
-                    var transcriptId = transcript.getTranscriptId();
-                    var readCount = transcript.getReadCount();
-                    transcriptSeq.setLength(0);
-                    var exons = transcript.getTranscriptEntry().getPositions();
-                    for (var exon : exons) {
-                        transcriptSeq.append(geneSeq, exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
-                    }
+                    var geneId = entry.getKey();
+                    var gene = entry.getValue();
+                    var strand = gene.getStrand();
+                    var chromosome = gene.getSeqName();
+                    var geneSeq = (seqExtractor.getSequence(chromosome, gene.getStart(), gene.getStop()));
 
-                    var forwardSeq = transcriptSeq.toString();
-                    String otherSeq;
+                    for (var transcript : gene.getTranscriptMapArray()[Constants.EXON_INDEX].values()) {
+                        var transcriptSeq = new StringBuilder();
+                        var transcriptId = transcript.getTranscriptId();
+                        var readCount = transcript.getReadCount();
+                        var exons = transcript.getTranscriptEntry().getPositions();
+                        for (var exon : exons) {
+                            transcriptSeq.append(geneSeq, exon.getStart() - gene.getStart(), exon.getStop() - gene.getStart() + 1);
+                        }
 
-                    if (strand == '-') {
-                        otherSeq = forwardSeq;
-                        transcriptSeq.setLength(0);
-                        transcriptSeq.append(GenomeSequenceExtractor.getReverseComplement(forwardSeq));
-                    } else {
-                        otherSeq = GenomeSequenceExtractor.getReverseComplement(forwardSeq);
-                    }
+                        var forwardSeq = transcriptSeq.toString();
+                        String otherSeq;
 
-                    var transcriptLength = transcriptSeq.length();
-                    var maxZ = (transcriptLength - frLength) / (double)sd;
-                    var tasks = new ArrayList<Callable<Void>>();
-                    for (int i = 0; i < readCount; i++) {
-                        tasks.add(() -> {
-                            var z = random.nextGaussian(); // Standard-Normalverteilung
+                        if (strand == '-') {
+                            otherSeq = forwardSeq;
+                            transcriptSeq.setLength(0);
+                            transcriptSeq.append(GenomeSequenceExtractor.getReverseComplement(forwardSeq));
+                        } else {
+                            otherSeq = GenomeSequenceExtractor.getReverseComplement(forwardSeq);
+                        }
 
-                            var scaledZ = (z - minZ) / (maxZ - minZ);
-                            scaledZ = Math.max(0, Math.min(1, scaledZ)); // Begrenzen auf [0, 1]
+                        var transcriptLength = transcriptSeq.length();
 
-                            var fragmentLength = (int) (readLength + scaledZ * (transcriptLength - readLength));
+                        for (int i = 0; i < readCount; i++) {
+
+
+                            var random = threadLocalRandom.get();
+
+                            int fragmentLength;
+                            do {
+                                fragmentLength = (int) Math.round(random.nextGaussian(frLength, sd));
+                            } while (fragmentLength < readLength || transcriptLength < fragmentLength);
 
                             int fragmentStartPos;
                             fragmentStartPos = random.nextInt(0, transcriptLength - fragmentLength + 1);
@@ -89,9 +90,9 @@ public class ReadSimulation {
                             }
 
                             var mutatedPos = new TreeSet<Integer>();
-                            var mutatedSeq = simulateRead(fwRead, mutatedPos);
+                            var mutatedSeq = simulateRead(fwRead, mutatedPos, random);
                             var mutatedRevPos = new TreeSet<Integer>();
-                            var mutatedRevSeq = simulateRead(rvRead, mutatedRevPos);
+                            var mutatedRevSeq = simulateRead(rvRead, mutatedRevPos, random);
 
                             var fwStart = fragmentStartPos;
                             var fwEnd = fragmentStartPos + readLength;
@@ -122,17 +123,16 @@ public class ReadSimulation {
                                 Writer.writeFastq(rvFastqWriter, currentReadId, mutatedRevSeq, qualityString);
                             }
 
-                            return null;
-                        });
+                        }
                     }
-
-                    try {
-                        executor.invokeAll(tasks);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        logger.error("error", e);
-                    }
-                }
+                    return null;
+                });
+            }
+            try {
+                executor.invokeAll(tasks);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.error("error", e);
             }
         } catch (Exception e) {
             logger.error("Error while simulating reads", e);
@@ -143,7 +143,7 @@ public class ReadSimulation {
 
     private static double lambda;
 
-    public static int samplePoisson() {
+    public static int samplePoisson(SplittableRandom random) {
         var k = 0;
         var p = 1.0;
 
@@ -155,9 +155,9 @@ public class ReadSimulation {
         return k - 1;
     }
 
-    private static String simulateRead(String seq, Set<Integer> mutatedPositions) {
+    private static String simulateRead(String seq, Set<Integer> mutatedPositions, SplittableRandom random) {
 
-        var numMutations = samplePoisson();
+        var numMutations = samplePoisson(random);
         var seqArr = seq.toCharArray();
 
         for (int i = 0; i < numMutations; i++) {
@@ -181,7 +181,7 @@ public class ReadSimulation {
     }
 
     private static List<int[]>[] getGenomicRegions(
-            TreeSet<FeatureRecord> exons,
+            NavigableSet<FeatureRecord> exons,
             int fwStart, int fwEnd,
             int rvStart, int rvEnd,
             char strand) {
@@ -191,12 +191,11 @@ public class ReadSimulation {
         var rvGenomicRegions = new ArrayList<int[]>();
 
         // Reverse iteration if needed
-        Set<FeatureRecord> iterableExons = exons;
         if (strand == '-') {
-            iterableExons = exons.descendingSet();
+            exons = exons.descendingSet();
         }
 
-        for (var exon : iterableExons) {
+        for (var exon : exons) {
             var exonStart = exon.getStart();
             var exonEnd = exon.getStop();
             var exonLength = exonEnd - exonStart + 1;

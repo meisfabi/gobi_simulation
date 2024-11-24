@@ -16,13 +16,19 @@ public class Gene implements Interval {
     private int start;
     private int stop;
 
-    private Map<String, Transcript>[] transcriptMapArray;
+    private volatile Map<String, Transcript>[] transcriptMapArray;
 
-    public synchronized Map<String, Transcript>[] getTranscriptMapArray() {
-        if(transcriptMapArray == null)
-            transcriptMapArray = new ConcurrentMap[1];
+    public Map<String, Transcript>[] getTranscriptMapArray() {
+        if (transcriptMapArray == null) {
+            synchronized (this) {
+                if (transcriptMapArray == null) {
+                    transcriptMapArray = new ConcurrentMap[1];
+                }
+            }
+        }
         return transcriptMapArray;
     }
+
     public String getGeneName() {
         return geneName;
     }

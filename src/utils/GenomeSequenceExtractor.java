@@ -11,18 +11,28 @@ import java.io.RandomAccessFile;
 import java.util.Map;
 
 public class GenomeSequenceExtractor {
-    private RandomAccessFile raf;
+    // private RandomAccessFile raf;
     Map<String, FidxEntry> fidxData;
-
+    private File fasta;
     private static final Logger logger = LoggerFactory.getLogger(GenomeSequenceExtractor.class);
 
 
     public GenomeSequenceExtractor(File fasta, Map<String, FidxEntry> fidxData) throws FileNotFoundException {
-        raf = new RandomAccessFile(fasta, "r");
+        this.fasta = fasta;
+        // raf = new RandomAccessFile(fasta, "r");
         this.fidxData = fidxData;
     }
 
+    private final ThreadLocal<RandomAccessFile> threadLocalRaf = ThreadLocal.withInitial(() -> {
+        try {
+            return new RandomAccessFile(fasta, "r");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    });
+
     public String getSequence(String chr, int start, int end) throws IOException {
+        var raf = threadLocalRaf.get();
         var fidx = fidxData.get(chr);
         var lineLength = fidx.getLineLength();
         var lineLengthWithNewline = fidx.getLineLengthWithNewLine();
@@ -97,8 +107,6 @@ public class GenomeSequenceExtractor {
                     default:
                         throw new Exception("yur");
                 };
-
-                //reverseComplement[i] = Constants.COMPLEMENT_MAP.get(base);
             }
             return new String(reverseComplement);
         } catch (Exception e){
