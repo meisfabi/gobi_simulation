@@ -1,7 +1,6 @@
 import model.FeatureRecord;
 import model.FidxEntry;
 import model.Genes;
-import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pooling.SimulationOutputFactory;
@@ -159,7 +158,7 @@ public class ReadSimulation {
     }
 
     private static List<int[]>[] getGenomicRegions(
-            TreeSet<FeatureRecord> exons,
+            NavigableSet<FeatureRecord> exons,
             int fwStart, int fwEnd,
             int rvStart, int rvEnd,
             char strand) {
@@ -169,12 +168,11 @@ public class ReadSimulation {
         var rvGenomicRegions = new ArrayList<int[]>();
 
         // Reverse iteration if needed
-        Set<FeatureRecord> iterableExons = exons;
         if (strand == '-') {
-            iterableExons = exons.descendingSet();
+            exons = exons.descendingSet();
         }
 
-        for (var exon : iterableExons) {
+        for (var exon : exons) {
             var exonStart = exon.getStart();
             var exonEnd = exon.getStop();
             var exonLength = exonEnd - exonStart + 1;
