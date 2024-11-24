@@ -95,7 +95,6 @@ public class Writer {
         }
     }
 
-    private static final Map<Integer, String> qualityCache = new HashMap<>();
 
     private static final StringBuilder sb = new StringBuilder();
     public static void writeFastq(BufferedWriter writer, int readId, String seq, String qualityString) {
