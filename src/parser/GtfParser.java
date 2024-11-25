@@ -264,12 +264,9 @@ public class GtfParser {
             return;
         }
 
-        var transcriptMap = currentGene.getTranscriptMapArray();
-        if (transcriptMap[index] == null) {
-            transcriptMap[index] = new ConcurrentHashMap<>();
-        }
+        var transcriptMap = currentGene.getTranscriptMap();
 
-        var transcriptEntry = transcriptMap[index]
+        var transcriptEntry = transcriptMap
                 .computeIfAbsent(transcriptId, id -> transcript)
                 .getTranscriptEntry();
 
@@ -354,15 +351,11 @@ public class GtfParser {
         transcript.setStart(Integer.parseInt(splitLine[3]));
         transcript.setStop(Integer.parseInt(splitLine[4]));
 
-        var index = Constants.EXON_INDEX;
-        var transcriptMap = currentGene.getTranscriptMapArray();
-        if (transcriptMap[index] == null) {
-            transcriptMap[index] = new ConcurrentHashMap<>();
-        }
+        var transcriptMap = currentGene.getTranscriptMap();
 
-        transcript.setReadCount(rcData.getReadCountData().get(geneId).get(transcriptId).getReadCounts());
+        transcript.setReadCount(rcData.getReadCountData().get(geneId).get(transcriptId));
 
-        transcriptMap[index]
+        transcriptMap
                 .computeIfAbsent(transcriptId, id -> transcript)
                 .getTranscriptEntry();    }
 

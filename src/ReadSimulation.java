@@ -35,7 +35,7 @@ public class ReadSimulation {
                 geneSeq.setLength(0);
                 geneSeq.append(seqExtractor.getSequence(chromosome, gene.getStart(), gene.getStop()));
 
-                for (var transcript : gene.getTranscriptMapArray()[Constants.EXON_INDEX].values()) {
+                for (var transcript : gene.getTranscriptMap().values()) {
                     var transcriptId = transcript.getTranscriptId();
                     var readCount = transcript.getReadCount();
                     transcriptSeq.setLength(0);
@@ -51,7 +51,7 @@ public class ReadSimulation {
                         otherSeq = forwardSeq;
                         transcriptSeq.setLength(0);
                         transcriptSeq.append(GenomeSequenceExtractor.getReverseComplement(forwardSeq));
-                    } else{
+                    } else {
                         otherSeq = GenomeSequenceExtractor.getReverseComplement(forwardSeq);
                     }
 
@@ -119,6 +119,7 @@ public class ReadSimulation {
     }
 
     private static double lambda;
+
     public static int samplePoisson() {
         double l = Math.exp(-lambda);
         int k = 0;
